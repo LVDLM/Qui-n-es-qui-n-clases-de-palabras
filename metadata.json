@@ -1,0 +1,6 @@
+{
+  "name": "Quién es Quién de Clases de Palabras",
+  "description": "Un juego educativo inspirado en el clásico Quién es Quién para repasar las clases de palabras en español (sustantivos, verbos, adjetivos, etc.) con tableros interactivos y modos de juego cooperativo y competitivo.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
