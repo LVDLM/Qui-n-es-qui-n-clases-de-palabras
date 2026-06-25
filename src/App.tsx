@@ -1084,10 +1084,10 @@ export default function App() {
           <div className="w-10 h-10 bg-slate-900 rounded-xl flex items-center justify-center text-white font-black text-xl shadow-xs">G</div>
           <div>
             <h1 className="text-xl md:text-2xl font-display font-black text-slate-900 tracking-tight leading-none">
-              GRAMÁTICA: ¿QUIÉN ES QUIÉN?
+              Quién es quién: palabras
             </h1>
             <p className="text-[10px] text-slate-400 font-mono tracking-wider uppercase mt-1">
-              Laboratorio de Gramática y Morfosintaxis
+              El juego para identificar palabras
             </p>
           </div>
         </div>
