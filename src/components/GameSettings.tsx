@@ -25,6 +25,7 @@ interface GameSettingsProps {
   onJoinOnlineRoom: (code: string) => void;
   seriesLength: number;
   setSeriesLength: (val: number) => void;
+  themeStyle?: "dark" | "light" | "warm";
 }
 
 export default function GameSettings({
@@ -46,6 +47,7 @@ export default function GameSettings({
   onJoinOnlineRoom,
   seriesLength,
   setSeriesLength,
+  themeStyle = "dark",
 }: GameSettingsProps) {
   const [activeTab, setActiveTab] = useState<"game" | "pool">("game");
   const [showAddForm, setShowAddForm] = useState(false);
@@ -101,6 +103,15 @@ export default function GameSettings({
   const [conjTipo, setConjTipo] = useState<"coordinante" | "subordinante">("coordinante");
 
   const [formError, setFormError] = useState("");
+
+  const scrollToId = (id: string) => {
+    setTimeout(() => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      }
+    }, 150);
+  };
 
   const handleSubmitCustomWord = (e: React.FormEvent) => {
     e.preventDefault();
@@ -203,21 +214,45 @@ export default function GameSettings({
   return (
     <div id="settings-panel" className="w-full max-w-4xl mx-auto bg-white rounded-3xl border border-slate-200 shadow-md overflow-hidden">
       {/* Panel Headers */}
-      <div className="bg-slate-900 px-6 py-8 text-center text-white relative border-b border-slate-850">
-        <h1 className="text-2xl md:text-3xl font-display font-black tracking-tight uppercase">
+      <div className={`px-6 py-8 text-center relative border-b transition-all duration-300 ${
+        themeStyle === "light"
+          ? "bg-sky-50 text-sky-950 border-sky-100"
+          : themeStyle === "warm"
+          ? "bg-amber-50 text-amber-950 border-amber-200/60"
+          : "bg-slate-900 text-white border-slate-850"
+      }`}>
+        <h1 className={`text-2xl md:text-3xl font-display font-black tracking-tight uppercase ${
+          themeStyle === "light" ? "text-sky-950" : themeStyle === "warm" ? "text-amber-950" : "text-white"
+        }`}>
           QUIÉN ES QUIÉN GRAMATICAL
         </h1>
-        <p className="text-blue-100 text-xs md:text-sm mt-2 max-w-xl mx-auto font-sans font-medium">
+        <p className={`text-xs md:text-sm mt-2 max-w-xl mx-auto font-sans font-medium ${
+          themeStyle === "light" ? "text-sky-800" : themeStyle === "warm" ? "text-amber-800" : "text-blue-100"
+        }`}>
           Aprende y repasa las clases de palabras en español mediante preguntas estratégicas y eliminación progresiva. ¡Perfecto para pizarras digitales y juego cooperativo!
         </p>
 
         {/* Tab Navigation */}
-        <div className="flex justify-center mt-6 gap-2 border-b border-slate-800">
+        <div className={`flex justify-center mt-6 gap-2 border-b ${
+          themeStyle === "light"
+            ? "border-sky-150"
+            : themeStyle === "warm"
+            ? "border-amber-200/50"
+            : "border-slate-800"
+        }`}>
           <button
             onClick={() => setActiveTab("game")}
             className={`px-6 py-3 font-black text-xs uppercase tracking-wider transition-all relative border-b-4 ${
               activeTab === "game"
-                ? "border-sky-400 text-sky-400 font-extrabold"
+                ? themeStyle === "light"
+                  ? "border-sky-500 text-sky-600 font-extrabold"
+                  : themeStyle === "warm"
+                  ? "border-amber-500 text-amber-700 font-extrabold"
+                  : "border-sky-400 text-sky-400 font-extrabold"
+                : themeStyle === "light"
+                ? "border-transparent text-slate-400 hover:text-sky-900"
+                : themeStyle === "warm"
+                ? "border-transparent text-slate-400 hover:text-amber-900"
                 : "border-transparent text-slate-400 hover:text-white"
             } cursor-pointer`}
           >
@@ -227,7 +262,15 @@ export default function GameSettings({
             onClick={() => setActiveTab("pool")}
             className={`px-6 py-3 font-black text-xs uppercase tracking-wider transition-all relative border-b-4 ${
               activeTab === "pool"
-                ? "border-sky-400 text-sky-400 font-extrabold"
+                ? themeStyle === "light"
+                  ? "border-sky-500 text-sky-600 font-extrabold"
+                  : themeStyle === "warm"
+                  ? "border-amber-500 text-amber-700 font-extrabold"
+                  : "border-sky-400 text-sky-400 font-extrabold"
+                : themeStyle === "light"
+                ? "border-transparent text-slate-400 hover:text-sky-900"
+                : themeStyle === "warm"
+                ? "border-transparent text-slate-400 hover:text-amber-900"
                 : "border-transparent text-slate-400 hover:text-white"
             } cursor-pointer`}
           >
@@ -278,6 +321,7 @@ export default function GameSettings({
                     setGameMode("single");
                     setSelectedMode("single");
                     setSelectedSize(null);
+                    scrollToId("board-size-selection");
                   }}
                   className={`flex flex-col text-left p-4 rounded-2xl border-2 transition-all cursor-pointer relative ${
                     selectedMode === "single"
@@ -304,6 +348,7 @@ export default function GameSettings({
                     setGameMode("multi_local");
                     setSelectedMode("multi_local");
                     setSelectedSize(null);
+                    scrollToId("board-size-selection");
                   }}
                   className={`flex flex-col text-left p-4 rounded-2xl border-2 transition-all cursor-pointer relative ${
                     selectedMode === "multi_local"
@@ -330,6 +375,7 @@ export default function GameSettings({
                     setGameMode("multi_online");
                     setSelectedMode("multi_online");
                     setSelectedSize(null);
+                    scrollToId("online-room-options");
                   }}
                   className={`flex flex-col text-left p-4 rounded-2xl border-2 transition-all cursor-pointer relative ${
                     selectedMode === "multi_online"
@@ -356,6 +402,7 @@ export default function GameSettings({
                     setGameMode("pizarra");
                     setSelectedMode("pizarra");
                     setSelectedSize(null);
+                    scrollToId("board-size-selection");
                   }}
                   className={`flex flex-col text-left p-4 rounded-2xl border-2 transition-all cursor-pointer relative ${
                     selectedMode === "pizarra"
@@ -382,7 +429,7 @@ export default function GameSettings({
             {selectedMode && selectedMode !== "multi_online" && (
               <>
                 {/* Board Size Option */}
-                <div className="animate-in fade-in duration-300">
+                <div id="board-size-selection" className="animate-in fade-in duration-300">
                   <h2 className="text-lg font-display font-semibold text-slate-950 flex items-center gap-2">
                     Tamaño del Tablero de Palabras
                   </h2>
@@ -394,6 +441,7 @@ export default function GameSettings({
                         onClick={() => {
                           setBoardSize(size);
                           setSelectedSize(size);
+                          scrollToId("difficulty-and-play-options");
                         }}
                         className={`flex-1 py-3.5 rounded-xl border-2 text-center transition-all cursor-pointer ${
                           selectedSize === size
@@ -412,7 +460,7 @@ export default function GameSettings({
 
                 {/* Difficulty Option */}
                 {selectedSize && (
-                  <div className="flex flex-col gap-8 animate-in fade-in duration-300">
+                  <div id="difficulty-and-play-options" className="flex flex-col gap-8 animate-in fade-in duration-300">
                     <div>
                       <h2 className="text-lg font-display font-semibold text-slate-950 flex items-center gap-2">
                         Tipo de visualización
@@ -508,7 +556,7 @@ export default function GameSettings({
 
             {/* If selectedMode IS online */}
             {selectedMode === "multi_online" && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 border-t border-slate-100 pt-8 animate-in fade-in duration-300 font-sans">
+              <div id="online-room-options" className="grid grid-cols-1 md:grid-cols-2 gap-8 border-t border-slate-100 pt-8 animate-in fade-in duration-300 font-sans">
                 {/* Option 1: Create Room */}
                 <div className="bg-slate-50 border border-slate-200 rounded-3xl p-6 flex flex-col justify-between gap-6 shadow-sm">
                   <div>

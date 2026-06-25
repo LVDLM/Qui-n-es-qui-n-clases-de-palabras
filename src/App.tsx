@@ -131,6 +131,14 @@ export default function App() {
   const [boardSize, setBoardSize] = useState<number>(24);
   const [gameDifficulty, setGameDifficulty] = useState<"practice" | "competitive">("competitive");
   const [gameStarted, setGameStarted] = useState(false);
+  const [themeStyle, setThemeStyle] = useState<"dark" | "light" | "warm">(() => {
+    return (localStorage.getItem("gramatica_theme_style") as "dark" | "light" | "warm") || "dark";
+  });
+
+  const handleThemeStyleChange = (style: "dark" | "light" | "warm") => {
+    setThemeStyle(style);
+    localStorage.setItem("gramatica_theme_style", style);
+  };
 
   // Players Name Customization
   const [p1Name, setP1Name] = useState(() => {
@@ -1215,7 +1223,21 @@ export default function App() {
         </div>
 
         {/* Global actions */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center flex-wrap gap-2">
+          <div className="flex items-center gap-1.5 bg-slate-100 p-1.5 rounded-xl border border-slate-200">
+            <span className="text-[10px] font-bold text-slate-500 font-sans pl-1.5 uppercase tracking-wider hidden sm:inline">Diseño:</span>
+            <select
+              value={themeStyle}
+              onChange={(e) => handleThemeStyleChange(e.target.value as "dark" | "light" | "warm")}
+              className="bg-white border border-slate-300 text-slate-700 text-xs py-1 px-2 rounded-lg font-bold transition-all cursor-pointer outline-none focus:border-sky-500"
+              title="Estilo de cabeceras"
+            >
+              <option value="dark">🌑 Pizarra Oscura</option>
+              <option value="light">☀️ Claridad Azul</option>
+              <option value="warm">📜 Papiro Cálido</option>
+            </select>
+          </div>
+
           {gameStarted && (
             <button
               onClick={() => {
@@ -1265,12 +1287,22 @@ export default function App() {
               </div>
 
               {/* Code display */}
-              <div className="flex flex-col items-center bg-slate-900 text-white rounded-2xl p-6 shadow-md relative overflow-hidden border border-slate-800">
-                <span className="text-[10px] text-sky-450 text-sky-400 font-mono tracking-widest uppercase font-black">
+              <div className={`flex flex-col items-center rounded-2xl p-6 shadow-md relative overflow-hidden border transition-all duration-300 ${
+                themeStyle === "light"
+                  ? "bg-sky-50 border-sky-200 text-sky-950"
+                  : themeStyle === "warm"
+                  ? "bg-amber-50 border-amber-200/60 text-amber-950"
+                  : "bg-slate-900 text-white border-slate-800"
+              }`}>
+                <span className={`text-[10px] font-mono tracking-widest uppercase font-black ${
+                  themeStyle === "light" ? "text-sky-600 font-bold" : themeStyle === "warm" ? "text-amber-700 font-bold" : "text-sky-400"
+                }`}>
                   Código de la Sala
                 </span>
                 
-                <div className="text-5xl md:text-6xl font-mono font-black tracking-widest my-3 text-white select-all">
+                <div className={`text-5xl md:text-6xl font-mono font-black tracking-widest my-3 select-all ${
+                  themeStyle === "light" || themeStyle === "warm" ? "text-slate-900" : "text-white"
+                }`}>
                   {onlineRoomCode}
                 </div>
 
@@ -1281,16 +1313,16 @@ export default function App() {
                 >
                   {copiedCode ? (
                     <>
-                      <span>✅</span> ¡COPIADO!
+                      ¡COPIADO!
                     </>
                   ) : (
                     <>
-                      <span>📋</span> COPIAR CÓDIGO
+                      COPIAR CÓDIGO
                     </>
                   )}
                 </button>
               </div>
-
+              
               {/* Game details summary */}
               <div className="bg-slate-50 border border-slate-150 rounded-2xl p-4 text-left flex flex-col gap-2 font-sans">
                 <h4 className="text-xs font-black text-slate-400 uppercase font-mono tracking-wider">
@@ -1298,13 +1330,13 @@ export default function App() {
                 </h4>
                 <div className="grid grid-cols-2 gap-y-2 gap-x-4 text-xs font-semibold text-slate-700 mt-1">
                   <div className="flex items-center gap-1.5">
-                    <span>📏</span> Tamaño: <strong className="text-slate-900">{onlineRoom.boardSize} fichas</strong>
+                    Tamaño: <strong className="text-slate-900">{onlineRoom.boardSize} fichas</strong>
                   </div>
                   <div className="flex items-center gap-1.5">
-                    <span>🧠</span> Dificultad: <strong className="text-slate-900">{onlineRoom.gameDifficulty === "practice" ? "Aula / Práctica" : "Normal"}</strong>
+                    Dificultad: <strong className="text-slate-900">{onlineRoom.gameDifficulty === "practice" ? "Aula / Práctica" : "Normal"}</strong>
                   </div>
                   <div className="flex items-center gap-1.5 col-span-2">
-                    <span>🏆</span> Serie: <strong className="text-slate-900">{onlineRoom.seriesLength === 1 ? "Partida Única" : `Al mejor de ${onlineRoom.seriesLength}`}</strong>
+                    Serie: <strong className="text-slate-900">{onlineRoom.seriesLength === 1 ? "Partida Única" : `Al mejor de ${onlineRoom.seriesLength}`}</strong>
                   </div>
                 </div>
               </div>
@@ -1336,7 +1368,7 @@ export default function App() {
                 onClick={handleCancelOnlineRoom}
                 className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs py-2.5 px-5 rounded-xl cursor-pointer transition-all uppercase tracking-wider font-sans"
               >
-                ✖ Cancelar y salir
+                Cancelar y salir
               </button>
             </div>
           ) : (
@@ -1359,6 +1391,7 @@ export default function App() {
               onJoinOnlineRoom={handleJoinOnlineRoom}
               seriesLength={seriesLength}
               setSeriesLength={setSeriesLength}
+              themeStyle={themeStyle}
             />
           )
         ) : multiLocalSetup !== "none" ? (
@@ -1441,17 +1474,31 @@ export default function App() {
           <div className="w-full flex flex-col gap-6 no-print">
             
             {/* IN-GAME NOTIFIER BAR */}
-            <div className="bg-slate-900 text-white rounded-3xl p-5 shadow-lg flex flex-col md:flex-row items-center justify-between gap-4 border border-slate-800 relative">
+            <div className={`rounded-3xl p-5 shadow-lg flex flex-col md:flex-row items-center justify-between gap-4 border relative transition-all duration-300 ${
+              themeStyle === "light"
+                ? "bg-sky-50 text-sky-950 border-sky-200"
+                : themeStyle === "warm"
+                ? "bg-amber-50 text-amber-950 border-amber-200/60"
+                : "bg-slate-900 text-white border-slate-800"
+            }`}>
               
               {/* Game indicators */}
               <div className="flex items-center gap-4">
                 <span className="text-2xl">⚡</span>
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="text-[10px] uppercase font-mono tracking-wider text-slate-400 font-extrabold">
+                    <span className={`text-[10px] uppercase font-mono tracking-wider font-extrabold ${
+                      themeStyle === "light" ? "text-sky-600" : themeStyle === "warm" ? "text-amber-700" : "text-slate-400"
+                    }`}>
                       PARTIDA EN CURSO
                     </span>
-                    <span className="text-xs bg-slate-800 text-slate-300 font-extrabold px-2.5 py-0.5 rounded-full uppercase border border-slate-700">
+                    <span className={`text-xs font-extrabold px-2.5 py-0.5 rounded-full uppercase border transition-all ${
+                      themeStyle === "light"
+                        ? "bg-sky-100 text-sky-800 border-sky-200"
+                        : themeStyle === "warm"
+                        ? "bg-amber-100 text-amber-800 border-amber-200/50"
+                        : "bg-slate-800 text-slate-300 border-slate-700"
+                    }`}>
                       {gameMode === "single" ? "Vs Bot IA" : gameMode === "multi_local" ? "Cara a Cara" : gameMode === "multi_online" ? "En Línea 1vs1" : "Pizarra Digital"}
                     </span>
                     {gameMode === "multi_online" && onlineRoomCode && (
@@ -1460,16 +1507,26 @@ export default function App() {
                       </span>
                     )}
                   </div>
-                  <h2 className="text-lg md:text-xl font-display font-black mt-1 text-white">
-                    Turno actual: <span className="text-sky-400">{currentTurn === "p1" ? p1Name : p2Name}</span>
+                  <h2 className={`text-lg md:text-xl font-display font-black mt-1 transition-all ${
+                    themeStyle === "light" ? "text-sky-950" : themeStyle === "warm" ? "text-amber-950" : "text-white"
+                  }`}>
+                    Turno actual: <span className={themeStyle === "light" ? "text-sky-600 font-black" : themeStyle === "warm" ? "text-amber-700 font-black" : "text-sky-400"}>{currentTurn === "p1" ? p1Name : p2Name}</span>
                   </h2>
                 </div>
               </div>
 
               {/* Wins Series Tracker Card */}
-              <div className="flex items-center gap-4 bg-slate-950 px-5 py-3 rounded-2xl border border-slate-800 text-xs">
+              <div className={`flex items-center gap-4 px-5 py-3 rounded-2xl border text-xs transition-all ${
+                themeStyle === "light"
+                  ? "bg-white border-sky-200 text-sky-950"
+                  : themeStyle === "warm"
+                  ? "bg-white border-amber-200 text-amber-950"
+                  : "bg-slate-950 border-slate-800 text-white"
+              }`}>
                 <div className="flex flex-col items-end">
-                  <span className="font-bold text-slate-200 text-[10px] leading-none uppercase truncate max-w-[100px]" title={p1Name}>
+                  <span className={`font-bold text-[10px] leading-none uppercase truncate max-w-[100px] ${
+                    themeStyle === "light" ? "text-sky-900" : themeStyle === "warm" ? "text-amber-900" : "text-slate-200"
+                  }`} title={p1Name}>
                     {p1Name}
                   </span>
                   <div className="flex gap-1 mt-1.5">
@@ -1482,7 +1539,9 @@ export default function App() {
                 </div>
                 <div className="text-slate-500 font-black text-sm select-none px-1">VS</div>
                 <div className="flex flex-col items-start">
-                  <span className="font-bold text-slate-200 text-[10px] leading-none uppercase truncate max-w-[100px]" title={p2Name}>
+                  <span className={`font-bold text-[10px] leading-none uppercase truncate max-w-[100px] ${
+                    themeStyle === "light" ? "text-sky-900" : themeStyle === "warm" ? "text-amber-900" : "text-slate-200"
+                  }`} title={p2Name}>
                     {p2Name}
                   </span>
                   <div className="flex gap-1 mt-1.5">
@@ -1498,8 +1557,16 @@ export default function App() {
               {/* Private identity secrets controller */}
               {gameMode !== "multi_local" ? (
                 <div className="flex items-center gap-3">
-                  <div className="bg-slate-850 border border-slate-700 p-3 rounded-2xl flex flex-col gap-1 items-center min-w-[200px]">
-                    <span className="text-[9px] uppercase font-mono text-slate-400 font-bold">
+                  <div className={`p-3 rounded-2xl flex flex-col gap-1 items-center min-w-[200px] border transition-all ${
+                    themeStyle === "light"
+                      ? "bg-white border-sky-200"
+                      : themeStyle === "warm"
+                      ? "bg-white border-amber-200"
+                      : "bg-slate-850 border-slate-700"
+                  }`}>
+                    <span className={`text-[9px] uppercase font-mono font-bold ${
+                      themeStyle === "light" ? "text-sky-600" : themeStyle === "warm" ? "text-amber-700" : "text-slate-400"
+                    }`}>
                       Tu término para ocultar es:
                     </span>
                     
@@ -1512,8 +1579,10 @@ export default function App() {
                         {revealP1Secret ? "Ocultar" : "Revelar"}
                       </button>
                       {revealP1Secret && player2Secret && (
-                        <span className="text-xs font-bold text-slate-100 capitalize ml-1">
-                          {player2Secret.word} <span className="text-[10px] text-sky-350">({player2Secret.wordClass})</span>
+                        <span className={`text-xs font-bold capitalize ml-1 ${
+                          themeStyle === "light" ? "text-sky-950" : themeStyle === "warm" ? "text-amber-950" : "text-slate-100"
+                        }`}>
+                          {player2Secret.word} <span className="text-[10px] text-sky-500">({player2Secret.wordClass})</span>
                         </span>
                       )}
                     </div>
@@ -1521,8 +1590,16 @@ export default function App() {
 
                   {/* For whiteboard mode */}
                   {gameMode === "pizarra" && (
-                    <div className="bg-slate-850 border border-slate-700 p-3 rounded-2xl flex flex-col gap-1 items-center min-w-[200px]">
-                      <span className="text-[9px] uppercase font-mono text-slate-400 font-bold">
+                    <div className={`p-3 rounded-2xl flex flex-col gap-1 items-center min-w-[200px] border transition-all ${
+                      themeStyle === "light"
+                        ? "bg-white border-sky-200"
+                        : themeStyle === "warm"
+                        ? "bg-white border-amber-200"
+                        : "bg-slate-850 border-slate-700"
+                    }`}>
+                      <span className={`text-[9px] uppercase font-mono font-bold ${
+                        themeStyle === "light" ? "text-sky-600" : themeStyle === "warm" ? "text-amber-700" : "text-slate-400"
+                      }`}>
                         Término de {p2Name}:
                       </span>
                       
@@ -1534,8 +1611,10 @@ export default function App() {
                           {revealP2Secret ? "Ocultar" : "Revelar"}
                         </button>
                         {revealP2Secret && player1Secret && (
-                          <span className="text-xs font-bold text-slate-100 capitalize ml-1">
-                            {player1Secret.word} <span className="text-[10px] text-sky-350">({player1Secret.wordClass})</span>
+                          <span className={`text-xs font-bold capitalize ml-1 ${
+                            themeStyle === "light" ? "text-sky-950" : themeStyle === "warm" ? "text-amber-950" : "text-slate-100"
+                          }`}>
+                            {player1Secret.word} <span className="text-[10px] text-sky-500">({player1Secret.wordClass})</span>
                           </span>
                         )}
                       </div>
