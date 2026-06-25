@@ -126,19 +126,325 @@ export default function App() {
     setCustomConfirm({ title, message, confirmText, cancelText, onConfirm });
   };
 
-  // Keep names sync with mode changes
+  // Keep names sync with mode changes (preserving custom name when possible)
   useEffect(() => {
+    if (gameMode === "multi_online") return; // sync handles online names
+
+    const savedUsername = localStorage.getItem("gramatica_username");
     if (gameMode === "single") {
-      setP1Name("Tú (Azul)");
+      setP1Name(savedUsername || "Tú (Azul)");
       setP2Name("Bot Profesor (Rojo)");
     } else if (gameMode === "multi_local") {
-      setP1Name("Estudiante 1 (Azul)");
+      setP1Name(savedUsername || "Estudiante 1 (Azul)");
       setP2Name("Estudiante 2 (Rojo)");
     } else {
       setP1Name("Equipo A (Azul)");
       setP2Name("Equipo B (Rojo)");
     }
   }, [gameMode]);
+
+  // --- ONLINE MULTIPLAYER HELPERS & LISTENERS ---
+  const generateRoomCode = () => {
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    let code = "";
+    for (let i = 0; i < 4; i++) {
+      code += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return code;
+  };
+
+  const updateOnlineRoom = async (updates: any) => {
+    if (!onlineRoomCode) return;
+    try {
+      const docRef = doc(db, "online_rooms", onlineRoomCode);
+      await updateDoc(docRef, {
+        ...updates,
+        lastUpdate: Date.now()
+      });
+    } catch (e) {
+      console.error("Error updating online room in Firestore: ", e);
+    }
+  };
+
+  const handleCreateOnlineRoom = async (size: number, diff: "practice" | "competitive", series: number) => {
+    setIsLoading(true);
+    const code = generateRoomCode();
+    const generated = generateBoard(wordPool, size);
+    
+    const secretIdx1 = Math.floor(Math.random() * generated.length);
+    let secretIdx2 = Math.floor(Math.random() * generated.length);
+    while (secretIdx2 === secretIdx1 && generated.length > 1) {
+      secretIdx2 = Math.floor(Math.random() * generated.length);
+    }
+    const secret1 = generated[secretIdx1];
+    const secret2 = generated[secretIdx2];
+    
+    const roomDoc = {
+      id: code,
+      createdAt: Date.now(),
+      status: "waiting",
+      boardSize: size,
+      gameDifficulty: diff,
+      seriesLength: series,
+      hostName: p1Name,
+      guestName: "",
+      hostWins: 0,
+      guestWins: 0,
+      board: generated,
+      hostSecret: secret1,
+      guestSecret: secret2,
+      hostCards: generated.map(b => ({ wordId: b.id, isFlipped: false })),
+      guestCards: generated.map(b => ({ wordId: b.id, isFlipped: false })),
+      currentTurn: "host",
+      winner: null,
+      p1Mistakes: [],
+      p2Mistakes: [],
+      p1FailedResolves: [],
+      p2FailedResolves: [],
+      historyList: [],
+      pendingQuestion: null,
+      lastUpdate: Date.now()
+    };
+    
+    try {
+      await setDoc(doc(db, "online_rooms", code), roomDoc);
+      setOnlineRoomCode(code);
+      setOnlineRole("host");
+      setOnlineRoom(roomDoc);
+      setGameMode("multi_online");
+    } catch (e) {
+      alert("Error al crear la sala en el servidor. Inténtalo de nuevo.");
+      console.error(e);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleJoinOnlineRoom = async (code: string) => {
+    setIsLoading(true);
+    try {
+      const docRef = doc(db, "online_rooms", code);
+      const docSnap = await getDoc(docRef);
+      if (!docSnap.exists()) {
+        alert("¡Error! No existe ninguna sala activa con el código " + code);
+        setIsLoading(false);
+        return;
+      }
+      const data = docSnap.data();
+      if (data.status !== "waiting") {
+        alert("¡Error! Esta sala ya está en juego o llena.");
+        setIsLoading(false);
+        return;
+      }
+      
+      await updateDoc(docRef, {
+        guestName: p1Name,
+        status: "playing",
+        lastUpdate: Date.now()
+      });
+      
+      setOnlineRoomCode(code);
+      setOnlineRole("guest");
+      setOnlineRoom({ ...data, guestName: p1Name, status: "playing" });
+      setGameMode("multi_online");
+      setGameStarted(true);
+    } catch (e) {
+      alert("Error al unirse a la sala. Inténtalo de nuevo.");
+      console.error(e);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleStartNextRoundOnline = async () => {
+    if (!onlineRoom || !onlineRoomCode) return;
+    setIsLoading(true);
+    const generated = generateBoard(wordPool, onlineRoom.boardSize);
+    
+    const secretIdx1 = Math.floor(Math.random() * generated.length);
+    let secretIdx2 = Math.floor(Math.random() * generated.length);
+    while (secretIdx2 === secretIdx1 && generated.length > 1) {
+      secretIdx2 = Math.floor(Math.random() * generated.length);
+    }
+    const secret1 = generated[secretIdx1];
+    const secret2 = generated[secretIdx2];
+    
+    try {
+      await updateDoc(doc(db, "online_rooms", onlineRoomCode), {
+        status: "playing",
+        board: generated,
+        hostSecret: secret1,
+        guestSecret: secret2,
+        hostCards: generated.map(b => ({ wordId: b.id, isFlipped: false })),
+        guestCards: generated.map(b => ({ wordId: b.id, isFlipped: false })),
+        currentTurn: "host",
+        winner: null,
+        p1Mistakes: [],
+        p2Mistakes: [],
+        p1FailedResolves: [],
+        p2FailedResolves: [],
+        historyList: [],
+        pendingQuestion: null,
+        lastUpdate: Date.now()
+      });
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleResetSeriesOnline = async () => {
+    if (!onlineRoom || !onlineRoomCode) return;
+    setIsLoading(true);
+    const generated = generateBoard(wordPool, onlineRoom.boardSize);
+    
+    const secretIdx1 = Math.floor(Math.random() * generated.length);
+    let secretIdx2 = Math.floor(Math.random() * generated.length);
+    while (secretIdx2 === secretIdx1 && generated.length > 1) {
+      secretIdx2 = Math.floor(Math.random() * generated.length);
+    }
+    const secret1 = generated[secretIdx1];
+    const secret2 = generated[secretIdx2];
+    
+    try {
+      await updateDoc(doc(db, "online_rooms", onlineRoomCode), {
+        status: "playing",
+        board: generated,
+        hostSecret: secret1,
+        guestSecret: secret2,
+        hostCards: generated.map(b => ({ wordId: b.id, isFlipped: false })),
+        guestCards: generated.map(b => ({ wordId: b.id, isFlipped: false })),
+        currentTurn: "host",
+        winner: null,
+        hostWins: 0,
+        guestWins: 0,
+        p1Mistakes: [],
+        p2Mistakes: [],
+        p1FailedResolves: [],
+        p2FailedResolves: [],
+        historyList: [],
+        pendingQuestion: null,
+        lastUpdate: Date.now()
+      });
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleAnswerOnlineQuestion = async (ans: "SÍ" | "NO", explanation: string) => {
+    if (!onlineRoom) return;
+    const pq = onlineRoom.pendingQuestion;
+    if (!pq) return;
+    
+    const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const newHistoryItem = {
+      id: `h_${Date.now()}`,
+      player: pq.askedBy === "host" ? "p1" : "p2",
+      text: pq.text,
+      answer: ans,
+      explanation: explanation,
+      timestamp: time
+    };
+    
+    await updateOnlineRoom({
+      pendingQuestion: null,
+      historyList: [...(onlineRoom.historyList || []), newHistoryItem],
+      currentTurn: pq.askedBy === "host" ? "guest" : "host"
+    });
+  };
+
+  // Real-time synchronization
+  useEffect(() => {
+    if (!onlineRoomCode) return;
+
+    const docRef = doc(db, "online_rooms", onlineRoomCode);
+    const unsubscribe = onSnapshot(docRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        setOnlineRoom(data);
+        
+        setBoard(data.board || []);
+        setSeriesLength(data.seriesLength || 1);
+        setGameDifficulty(data.gameDifficulty || "competitive");
+        
+        if (onlineRole === "host") {
+          setPlayer1Cards(data.hostCards || []);
+          setPlayer2Cards(data.guestCards || []);
+          setPlayer1Secret(data.hostSecret || null);
+          setPlayer2Secret(data.guestSecret || null);
+          
+          const savedUsername = localStorage.getItem("gramatica_username");
+          setP1Name(savedUsername || data.hostName || "Anfitrión");
+          setP2Name(data.guestName || "Esperando rival...");
+          
+          setCurrentTurn(data.currentTurn === "host" ? "p1" : "p2");
+          setWinner(data.winner ? (data.winner === "host" ? "p1" : "p2") : null);
+          setP1Wins(data.hostWins || 0);
+          setP2Wins(data.guestWins || 0);
+          
+          setP1Mistakes(data.p1Mistakes || []);
+          setP2Mistakes(data.p2Mistakes || []);
+          
+          setP1FailedResolves(data.p1FailedResolves || []);
+          setP2FailedResolves(data.p2FailedResolves || []);
+        } else if (onlineRole === "guest") {
+          setPlayer1Cards(data.guestCards || []);
+          setPlayer2Cards(data.hostCards || []);
+          setPlayer1Secret(data.guestSecret || null);
+          setPlayer2Secret(data.hostSecret || null);
+          
+          const savedUsername = localStorage.getItem("gramatica_username");
+          setP1Name(savedUsername || data.guestName || "Invitado");
+          setP2Name(data.hostName || "Anfitrión");
+          
+          setCurrentTurn(data.currentTurn === "guest" ? "p1" : "p2");
+          setWinner(data.winner ? (data.winner === "guest" ? "p1" : "p2") : null);
+          setP1Wins(data.guestWins || 0);
+          setP2Wins(data.hostWins || 0);
+          
+          setP1Mistakes(data.p2Mistakes || []);
+          setP2Mistakes(data.p1Mistakes || []);
+          
+          setP1FailedResolves(data.p2FailedResolves || []);
+          setP2FailedResolves(data.p1FailedResolves || []);
+        }
+        
+        setHistoryList(data.historyList || []);
+        
+        if (data.pendingQuestion) {
+          const askedByP1 = data.pendingQuestion.askedBy === onlineRole;
+          setPendingLocalQuestion({
+            text: data.pendingQuestion.text,
+            askedBy: askedByP1 ? "p1" : "p2",
+            autoAnswer: data.pendingQuestion.autoAnswer,
+            explanation: data.pendingQuestion.explanation || ""
+          });
+        } else {
+          setPendingLocalQuestion(null);
+        }
+        
+        if (data.status === "playing" || data.status === "finished") {
+          setGameStarted(true);
+        }
+      }
+    });
+
+    return () => unsubscribe();
+  }, [onlineRoomCode, onlineRole]);
+
+  // Keep track of local series round wins
+  useEffect(() => {
+    if (gameMode !== "multi_online" && winner) {
+      if (winner === "p1") {
+        setP1Wins((prev) => prev + 1);
+      } else if (winner === "p2") {
+        setP2Wins((prev) => prev + 1);
+      }
+    }
+  }, [winner, gameMode]);
 
   // --- WORD POOL ACTIONS ---
   const handleAddCustomWord = (newWord: WordToken) => {
@@ -160,6 +466,13 @@ export default function App() {
 
   // --- INIT GAME BOARD LOOP ---
   const handleStartGame = () => {
+    const targetWins = Math.ceil(seriesLength / 2);
+    const isSeriesOver = p1Wins >= targetWins || p2Wins >= targetWins;
+    if (isSeriesOver) {
+      setP1Wins(0);
+      setP2Wins(0);
+    }
+
     const generated = generateBoard(wordPool, boardSize);
     setBoard(generated);
     setHasAskedThisTurn(false);
@@ -222,6 +535,54 @@ export default function App() {
 
   // --- GAMEPLAY TRIGGERS ---
   const handleToggleFlipCard = (player: "p1" | "p2", wordId: string) => {
+    if (gameMode === "multi_online") {
+      if (player !== "p1") return; // Can't flip rival's board
+      
+      const cards = player1Cards;
+      const targetSecret = player1Secret;
+      const mistakes = p1Mistakes;
+      const failed = p1FailedResolves;
+      
+      const cardsUpdated = cards.map((c) => {
+        if (c.wordId === wordId) {
+          const nextFlipped = !c.isFlipped;
+          
+          let updatedMistakes = [...mistakes];
+          if (nextFlipped && wordId === targetSecret?.id) {
+            if (!mistakes.includes(wordId)) {
+              updatedMistakes.push(wordId);
+            }
+          } else if (!nextFlipped && wordId === targetSecret?.id) {
+            updatedMistakes = updatedMistakes.filter((m) => m !== wordId);
+          }
+          
+          let updatedFailedResolves = [...failed];
+          if (!nextFlipped) {
+            updatedFailedResolves = updatedFailedResolves.filter((id) => id !== wordId);
+          }
+          
+          const nextCards = cards.map(item => item.wordId === wordId ? { ...item, isFlipped: nextFlipped } : item);
+          
+          if (onlineRole === "host") {
+            updateOnlineRoom({
+              hostCards: nextCards,
+              p1Mistakes: updatedMistakes,
+              p1FailedResolves: updatedFailedResolves
+            });
+          } else {
+            updateOnlineRoom({
+              guestCards: nextCards,
+              p2Mistakes: updatedMistakes,
+              p2FailedResolves: updatedFailedResolves
+            });
+          }
+          return { ...c, isFlipped: nextFlipped };
+        }
+        return c;
+      });
+      return;
+    }
+
     const cards = player === "p1" ? player1Cards : player2Cards;
     const setCards = player === "p1" ? setPlayer1Cards : setPlayer2Cards;
     const targetSecret = player === "p1" ? player1Secret : player2Secret; // What this player has to guess
@@ -287,6 +648,21 @@ export default function App() {
     const targetSecret = currentTurn === "p1" ? player1Secret : player2Secret;
     if (!targetSecret) return;
 
+    if (gameMode === "multi_online") {
+      const result = checkFn ? checkFn(player1Secret!) : { matches: false, reason: "" };
+      const autoAns: "SÍ" | "NO" = result.matches ? "SÍ" : "NO";
+      
+      updateOnlineRoom({
+        pendingQuestion: {
+          askedBy: onlineRole,
+          text,
+          autoAnswer: autoAns,
+          explanation: result.reason || "Evaluado automáticamente."
+        }
+      });
+      return;
+    }
+
     if (gameMode === "multi_local") {
       const result = checkFn ? checkFn(targetSecret) : { matches: false, reason: "" };
       const autoAns: "SÍ" | "NO" = result.matches ? "SÍ" : "NO";
@@ -319,6 +695,11 @@ export default function App() {
     } else if (gameMode === "multi_local") {
       // Trigger transition masking warning for local 2P
       setShowTurnTransition(true);
+    } else if (gameMode === "multi_online") {
+      const nextTurn = onlineRole === "host" ? "guest" : "host";
+      updateOnlineRoom({
+        currentTurn: nextTurn
+      });
     } else {
       // Whiteboard pizarra or dual screen toggle turn straight away
       setCurrentTurn(currentTurn === "p1" ? "p2" : "p1");
@@ -569,6 +950,38 @@ export default function App() {
     // CurrentTurn represents who is making the guess
     const targetSecret = currentTurn === "p1" ? player1Secret : player2Secret; // What they are supposed to guess
 
+    if (gameMode === "multi_online") {
+      if (selectedWordId === player1Secret?.id) {
+        // Correct!
+        const nextHostWins = onlineRole === "host" ? (onlineRoom.hostWins || 0) + 1 : (onlineRoom.hostWins || 0);
+        const nextGuestWins = onlineRole === "guest" ? (onlineRoom.guestWins || 0) + 1 : (onlineRoom.guestWins || 0);
+        
+        updateOnlineRoom({
+          winner: onlineRole,
+          hostWins: nextHostWins,
+          guestWins: nextGuestWins,
+          status: "finished"
+        });
+        setShowResolveModal(false);
+      } else {
+        // Failed
+        const guessedWord = board.find(w => w.id === selectedWordId)?.word || "desconocido";
+        setResolveAttemptError(`¡Ooh! '${guessedWord.toUpperCase()}' no es el término secreto de tu rival. Sigue investigando las pistas antes de resolver.`);
+        
+        const updatedFailed = [...p1FailedResolves, selectedWordId];
+        if (onlineRole === "host") {
+          updateOnlineRoom({
+            p1FailedResolves: updatedFailed
+          });
+        } else {
+          updateOnlineRoom({
+            p2FailedResolves: updatedFailed
+          });
+        }
+      }
+      return;
+    }
+
     if (selectedWordId === targetSecret?.id) {
       // Success! Correct Guess
       setWinner(currentTurn);
@@ -619,6 +1032,28 @@ export default function App() {
   );
 
   const handleSurrender = () => {
+    if (gameMode === "multi_online") {
+      triggerConfirm(
+        "🏳️ ¿Rendirse de la partida?",
+        "¿Estás seguro de que deseas rendirte? Se revelará tu término secreto y el oponente ganará la ronda de inmediato.",
+        "Sí, Rendirme",
+        "No, Seguir jugando",
+        () => {
+          const winnerRole = onlineRole === "host" ? "guest" : "host";
+          const nextHostWins = winnerRole === "host" ? (onlineRoom.hostWins || 0) + 1 : (onlineRoom.hostWins || 0);
+          const nextGuestWins = winnerRole === "guest" ? (onlineRoom.guestWins || 0) + 1 : (onlineRoom.guestWins || 0);
+          
+          updateOnlineRoom({
+            winner: winnerRole,
+            hostWins: nextHostWins,
+            guestWins: nextGuestWins,
+            status: "finished"
+          });
+        }
+      );
+      return;
+    }
+
     triggerConfirm(
       "🏳️ ¿Rendirse de la partida?",
       "¿Estás seguro de que deseas rendirte? Se revelará el término secreto de tu rival y finalizará la partida de inmediato.",
@@ -696,6 +1131,14 @@ export default function App() {
             gameDifficulty={gameDifficulty}
             setGameDifficulty={setGameDifficulty}
             onStartGame={handleStartGame}
+            p1Name={p1Name}
+            setP1Name={setP1Name}
+            p2Name={p2Name}
+            setP2Name={setP2Name}
+            onCreateOnlineRoom={handleCreateOnlineRoom}
+            onJoinOnlineRoom={handleJoinOnlineRoom}
+            seriesLength={seriesLength}
+            setSeriesLength={setSeriesLength}
           />
         ) : multiLocalSetup !== "none" ? (
           /* SECRET CHOOSE FLOW FOR LOCAL MULTIPLAYER same terminal */
@@ -788,12 +1231,46 @@ export default function App() {
                       PARTIDA EN CURSO
                     </span>
                     <span className="text-xs bg-slate-800 text-slate-300 font-extrabold px-2.5 py-0.5 rounded-full uppercase border border-slate-700">
-                      {gameMode === "single" ? "Vs Bot IA" : gameMode === "multi_local" ? "Cara a Cara" : "Pizarra Digital"}
+                      {gameMode === "single" ? "Vs Bot IA" : gameMode === "multi_local" ? "Cara a Cara" : gameMode === "multi_online" ? "En Línea 1vs1" : "Pizarra Digital"}
                     </span>
+                    {gameMode === "multi_online" && onlineRoomCode && (
+                      <span className="text-xs bg-indigo-600 text-indigo-100 font-extrabold px-2.5 py-0.5 rounded-full uppercase border border-indigo-500 font-mono tracking-wider">
+                        SALA: {onlineRoomCode}
+                      </span>
+                    )}
                   </div>
                   <h2 className="text-lg md:text-xl font-display font-black mt-1 text-white">
                     Turno actual: <span className="text-sky-400">{currentTurn === "p1" ? p1Name : p2Name}</span>
                   </h2>
+                </div>
+              </div>
+
+              {/* Wins Series Tracker Card */}
+              <div className="flex items-center gap-4 bg-slate-950 px-5 py-3 rounded-2xl border border-slate-800 text-xs">
+                <div className="flex flex-col items-end">
+                  <span className="font-bold text-slate-200 text-[10px] leading-none uppercase truncate max-w-[100px]" title={p1Name}>
+                    {p1Name}
+                  </span>
+                  <div className="flex gap-1 mt-1.5">
+                    {Array.from({ length: Math.max(1, Math.ceil(seriesLength / 2)) }).map((_, idx) => (
+                      <span key={idx} className="text-xs">
+                        {idx < p1Wins ? "🔵" : "⚪"}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                <div className="text-slate-500 font-black text-sm select-none px-1">VS</div>
+                <div className="flex flex-col items-start">
+                  <span className="font-bold text-slate-200 text-[10px] leading-none uppercase truncate max-w-[100px]" title={p2Name}>
+                    {p2Name}
+                  </span>
+                  <div className="flex gap-1 mt-1.5">
+                    {Array.from({ length: Math.max(1, Math.ceil(seriesLength / 2)) }).map((_, idx) => (
+                      <span key={idx} className="text-xs">
+                        {idx < p2Wins ? "🔴" : "⚪"}
+                      </span>
+                    ))}
+                  </div>
                 </div>
               </div>
 
@@ -944,19 +1421,57 @@ export default function App() {
                   </div>
                 </div>
 
-                <div className="flex justify-center gap-3 mt-2">
-                  <button
-                    onClick={handleStartGame}
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-8 rounded-xl cursor-pointer shadow-md transition-all text-sm"
-                  >
-                    🔄 Jugar Otra Vez con Mismos Ajustes
-                  </button>
-                  <button
-                    onClick={() => setGameStarted(false)}
-                    className="bg-slate-950 hover:bg-slate-900 text-white font-bold py-3 px-8 rounded-xl cursor-pointer shadow-md transition-all text-sm"
-                  >
-                    ⚙️ Volver a Ajustes / Modificar Fichas
-                  </button>
+                <div className="flex flex-col md:flex-row justify-center gap-3 mt-4">
+                  {gameMode === "multi_online" ? (
+                    <>
+                      {onlineRole === "host" ? (
+                        <>
+                          <button
+                            onClick={handleStartNextRoundOnline}
+                            className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-8 rounded-xl cursor-pointer shadow-md transition-all text-sm"
+                          >
+                            🔄 Siguiente Ronda / Partida
+                          </button>
+                          <button
+                            onClick={handleResetSeriesOnline}
+                            className="bg-amber-600 hover:bg-amber-700 text-white font-bold py-3 px-8 rounded-xl cursor-pointer shadow-md transition-all text-sm"
+                          >
+                            ♻️ Reiniciar Serie (0-0)
+                          </button>
+                        </>
+                      ) : (
+                        <div className="bg-slate-100 border border-slate-200 text-slate-600 font-semibold py-3 px-8 rounded-xl text-sm flex items-center gap-2 animate-pulse justify-center">
+                          <span>⏳</span> Esperando que el anfitrión comience la siguiente ronda...
+                        </div>
+                      )}
+                      <button
+                        onClick={() => {
+                          setOnlineRoomCode(null);
+                          setOnlineRole(null);
+                          setOnlineRoom(null);
+                          setGameStarted(false);
+                        }}
+                        className="bg-slate-950 hover:bg-slate-900 text-white font-bold py-3 px-8 rounded-xl cursor-pointer shadow-md transition-all text-sm"
+                      >
+                        ⚙️ Salir al Menú Principal
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        onClick={handleStartGame}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-8 rounded-xl cursor-pointer shadow-md transition-all text-sm"
+                      >
+                        🔄 Jugar Otra Vez con Mismos Ajustes
+                      </button>
+                      <button
+                        onClick={() => setGameStarted(false)}
+                        className="bg-slate-950 hover:bg-slate-900 text-white font-bold py-3 px-8 rounded-xl cursor-pointer shadow-md transition-all text-sm"
+                      >
+                        ⚙️ Volver a Ajustes / Modificar Fichas
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
             )}
