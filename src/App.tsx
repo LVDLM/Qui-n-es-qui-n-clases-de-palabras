@@ -15,6 +15,26 @@ import { doc, setDoc, onSnapshot, updateDoc, getDoc } from "firebase/firestore";
 import { db } from "./lib/firebase";
 import { handleFirestoreError, OperationType } from "./lib/firestore-errors";
 
+function cleanUndefined(obj: any): any {
+  if (obj === null || obj === undefined) {
+    return null;
+  }
+  if (Array.isArray(obj)) {
+    return obj.map(item => cleanUndefined(item));
+  }
+  if (typeof obj === "object") {
+    const cleaned: any = {};
+    for (const key of Object.keys(obj)) {
+      const val = obj[key];
+      if (val !== undefined) {
+        cleaned[key] = cleanUndefined(val);
+      }
+    }
+    return cleaned;
+  }
+  return obj;
+}
+
 export default function App() {
   // --- WORD POOL PERSISTENCE STATE ---
   const [wordPool, setWordPool] = useState<WordToken[]>(() => {
@@ -91,6 +111,20 @@ export default function App() {
   const [activeBotQuestion, setActiveBotQuestion] = useState<string | null>(null);
   const [askedBotQuestions, setAskedBotQuestions] = useState<string[]>([]);
 
+  const [copiedCode, setCopiedCode] = useState(false);
+  const handleCopyCode = () => {
+    if (!onlineRoomCode) return;
+    navigator.clipboard.writeText(onlineRoomCode);
+    setCopiedCode(true);
+    setTimeout(() => setCopiedCode(false), 2000);
+  };
+  const handleCancelOnlineRoom = () => {
+    setOnlineRoomCode(null);
+    setOnlineRoom(null);
+    setOnlineRole(null);
+    setGameMode("single");
+  };
+
   // --- MODAL & UI VIEWS ---
   const [showSetupTransition, setShowSetupTransition] = useState(false);
   const [isHelperExpanded, setIsHelperExpanded] = useState(true);
@@ -159,10 +193,10 @@ export default function App() {
     const path = `online_rooms/${onlineRoomCode}`;
     try {
       const docRef = doc(db, "online_rooms", onlineRoomCode);
-      await updateDoc(docRef, {
+      await updateDoc(docRef, cleanUndefined({
         ...updates,
         lastUpdate: Date.now()
-      });
+      }));
     } catch (e) {
       console.error("Error updating online room in Firestore: ", e);
       handleFirestoreError(e, OperationType.UPDATE, path);
@@ -210,7 +244,7 @@ export default function App() {
     };
     
     try {
-      await setDoc(doc(db, "online_rooms", code), roomDoc);
+      await setDoc(doc(db, "online_rooms", code), cleanUndefined(roomDoc));
       setOnlineRoomCode(code);
       setOnlineRole("host");
       setOnlineRoom(roomDoc);
@@ -241,11 +275,11 @@ export default function App() {
         return;
       }
       
-      await updateDoc(docRef, {
+      await updateDoc(docRef, cleanUndefined({
         guestName: p1Name,
         status: "playing",
         lastUpdate: Date.now()
-      });
+      }));
       
       setOnlineRoomCode(code);
       setOnlineRole("guest");
@@ -275,7 +309,7 @@ export default function App() {
     const secret2 = generated[secretIdx2];
     
     try {
-      await updateDoc(doc(db, "online_rooms", onlineRoomCode), {
+      await updateDoc(doc(db, "online_rooms", onlineRoomCode), cleanUndefined({
         status: "playing",
         board: generated,
         hostSecret: secret1,
@@ -291,7 +325,7 @@ export default function App() {
         historyList: [],
         pendingQuestion: null,
         lastUpdate: Date.now()
-      });
+      }));
     } catch (e) {
       console.error(e);
       handleFirestoreError(e, OperationType.UPDATE, `online_rooms/${onlineRoomCode}`);
@@ -314,7 +348,7 @@ export default function App() {
     const secret2 = generated[secretIdx2];
     
     try {
-      await updateDoc(doc(db, "online_rooms", onlineRoomCode), {
+      await updateDoc(doc(db, "online_rooms", onlineRoomCode), cleanUndefined({
         status: "playing",
         board: generated,
         hostSecret: secret1,
@@ -332,7 +366,7 @@ export default function App() {
         historyList: [],
         pendingQuestion: null,
         lastUpdate: Date.now()
-      });
+      }));
     } catch (e) {
       console.error(e);
       handleFirestoreError(e, OperationType.UPDATE, `online_rooms/${onlineRoomCode}`);
@@ -1129,26 +1163,116 @@ export default function App() {
         
         {/* VIEW 1: GAME CONFIG / INITIAL SCREEN */}
         {!gameStarted ? (
-          <GameSettings
-            wordPool={wordPool}
-            onAddCustomWord={handleAddCustomWord}
-            onRemoveCustomWord={handleRemoveCustomWord}
-            boardSize={boardSize}
-            setBoardSize={setBoardSize}
-            gameMode={gameMode}
-            setGameMode={setGameMode}
-            gameDifficulty={gameDifficulty}
-            setGameDifficulty={setGameDifficulty}
-            onStartGame={handleStartGame}
-            p1Name={p1Name}
-            setP1Name={setP1Name}
-            p2Name={p2Name}
-            setP2Name={setP2Name}
-            onCreateOnlineRoom={handleCreateOnlineRoom}
-            onJoinOnlineRoom={handleJoinOnlineRoom}
-            seriesLength={seriesLength}
-            setSeriesLength={setSeriesLength}
-          />
+          gameMode === "multi_online" && onlineRoomCode && onlineRoom && onlineRoom.status === "waiting" ? (
+            <div className="w-full max-w-lg bg-white border border-slate-200 rounded-3xl p-6 md:p-8 flex flex-col gap-6 shadow-xl text-center select-none my-auto">
+              {/* Header */}
+              <div className="bg-slate-50 p-5 rounded-2xl border border-dashed border-slate-200">
+                <span className="text-4xl">🌐</span>
+                <h2 className="text-xl md:text-2xl font-display font-black text-slate-900 mt-2 uppercase tracking-tight">
+                  Sala de Espera Online
+                </h2>
+                <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto font-medium leading-relaxed font-sans">
+                  Tu sala ha sido creada en la nube. Comparte el siguiente código de acceso con tu oponente para jugar en tiempo real.
+                </p>
+              </div>
+
+              {/* Code display */}
+              <div className="flex flex-col items-center bg-slate-900 text-white rounded-2xl p-6 shadow-md relative overflow-hidden border border-slate-800">
+                <span className="text-[10px] text-sky-450 text-sky-400 font-mono tracking-widest uppercase font-black">
+                  Código de la Sala
+                </span>
+                
+                <div className="text-5xl md:text-6xl font-mono font-black tracking-widest my-3 text-white select-all">
+                  {onlineRoomCode}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleCopyCode}
+                  className="flex items-center gap-2 bg-sky-500 hover:bg-sky-600 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-[0_3px_0_rgb(14,116,144)] active:translate-y-0.5 active:shadow-none transition-all cursor-pointer mt-1"
+                >
+                  {copiedCode ? (
+                    <>
+                      <span>✅</span> ¡COPIADO!
+                    </>
+                  ) : (
+                    <>
+                      <span>📋</span> COPIAR CÓDIGO
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {/* Game details summary */}
+              <div className="bg-slate-50 border border-slate-150 rounded-2xl p-4 text-left flex flex-col gap-2 font-sans">
+                <h4 className="text-xs font-black text-slate-400 uppercase font-mono tracking-wider">
+                  Configuración de la Partida:
+                </h4>
+                <div className="grid grid-cols-2 gap-y-2 gap-x-4 text-xs font-semibold text-slate-700 mt-1">
+                  <div className="flex items-center gap-1.5">
+                    <span>📏</span> Tamaño: <strong className="text-slate-900">{onlineRoom.boardSize} fichas</strong>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span>🧠</span> Dificultad: <strong className="text-slate-900">{onlineRoom.gameDifficulty === "practice" ? "Aula / Práctica" : "Normal"}</strong>
+                  </div>
+                  <div className="flex items-center gap-1.5 col-span-2">
+                    <span>🏆</span> Serie: <strong className="text-slate-900">{onlineRoom.seriesLength === 1 ? "Partida Única" : `Al mejor de ${onlineRoom.seriesLength}`}</strong>
+                  </div>
+                </div>
+              </div>
+
+              {/* Status spinner / radar */}
+              <div className="flex flex-col items-center py-2 font-sans">
+                <div className="flex items-center justify-center gap-3">
+                  <div className="w-2.5 h-2.5 bg-emerald-500 rounded-full animate-ping" />
+                  <span className="text-xs font-bold text-slate-600 animate-pulse uppercase tracking-wider font-mono">
+                    Esperando a que se una tu rival...
+                  </span>
+                </div>
+                
+                <div className="flex justify-between items-center w-full max-w-xs mt-4 p-3 bg-slate-50 border border-slate-150 rounded-xl text-xs font-medium text-slate-500">
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 bg-sky-500 rounded-full" />
+                    <span>Anfitrión: <strong>{onlineRoom.hostName || p1Name}</strong></span>
+                  </div>
+                  <div className="flex items-center gap-1.5 animate-pulse">
+                    <span className="w-2 h-2 bg-slate-300 rounded-full" />
+                    <span>Invitado: <strong>Esperando...</strong></span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <button
+                type="button"
+                onClick={handleCancelOnlineRoom}
+                className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs py-2.5 px-5 rounded-xl cursor-pointer transition-all uppercase tracking-wider font-sans"
+              >
+                ✖ Cancelar y salir
+              </button>
+            </div>
+          ) : (
+            <GameSettings
+              wordPool={wordPool}
+              onAddCustomWord={handleAddCustomWord}
+              onRemoveCustomWord={handleRemoveCustomWord}
+              boardSize={boardSize}
+              setBoardSize={setBoardSize}
+              gameMode={gameMode}
+              setGameMode={setGameMode}
+              gameDifficulty={gameDifficulty}
+              setGameDifficulty={setGameDifficulty}
+              onStartGame={handleStartGame}
+              p1Name={p1Name}
+              setP1Name={setP1Name}
+              p2Name={p2Name}
+              setP2Name={setP2Name}
+              onCreateOnlineRoom={handleCreateOnlineRoom}
+              onJoinOnlineRoom={handleJoinOnlineRoom}
+              seriesLength={seriesLength}
+              setSeriesLength={setSeriesLength}
+            />
+          )
         ) : multiLocalSetup !== "none" ? (
           /* SECRET CHOOSE FLOW FOR LOCAL MULTIPLAYER same terminal */
           <div className="w-full max-w-4xl bg-white border border-slate-200 rounded-3xl p-6 md:p-10 flex flex-col gap-6 shadow-xl text-center select-none my-auto">
