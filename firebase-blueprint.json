@@ -1,0 +1,107 @@
+{
+  "entities": {
+    "OnlineRoom": {
+      "title": "Online Room",
+      "description": "An online multiplayer 1v1 game room for grammar battleship guessing.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "4-character uppercase room code"
+        },
+        "createdAt": {
+          "type": "integer",
+          "description": "Timestamp of creation"
+        },
+        "status": {
+          "type": "string",
+          "description": "waiting, playing, finished"
+        },
+        "boardSize": {
+          "type": "integer",
+          "description": "Size of the board"
+        },
+        "gameDifficulty": {
+          "type": "string",
+          "description": "practice or competitive"
+        },
+        "seriesLength": {
+          "type": "integer",
+          "description": "1, 3, or 5 rounds"
+        },
+        "hostName": {
+          "type": "string",
+          "description": "Name of the host"
+        },
+        "guestName": {
+          "type": "string",
+          "description": "Name of the guest"
+        },
+        "hostWins": {
+          "type": "integer",
+          "description": "Host round wins"
+        },
+        "guestWins": {
+          "type": "integer",
+          "description": "Guest round wins"
+        },
+        "board": {
+          "type": "array",
+          "description": "Array of word tokens"
+        },
+        "hostSecret": {
+          "type": "object",
+          "description": "Host secret card token"
+        },
+        "guestSecret": {
+          "type": "object",
+          "description": "Guest secret card token"
+        },
+        "hostCards": {
+          "type": "array",
+          "description": "Flip states for host"
+        },
+        "guestCards": {
+          "type": "array",
+          "description": "Flip states for guest"
+        },
+        "currentTurn": {
+          "type": "string",
+          "description": "host or guest"
+        },
+        "winner": {
+          "type": "string",
+          "description": "host or guest or null"
+        },
+        "p1Mistakes": {
+          "type": "array"
+        },
+        "p2Mistakes": {
+          "type": "array"
+        },
+        "p1FailedResolves": {
+          "type": "array"
+        },
+        "p2FailedResolves": {
+          "type": "array"
+        },
+        "historyList": {
+          "type": "array"
+        },
+        "pendingQuestion": {
+          "type": "object"
+        },
+        "lastUpdate": {
+          "type": "integer"
+        }
+      },
+      "required": ["id", "createdAt", "status"]
+    }
+  },
+  "firestore": {
+    "/online_rooms/{roomId}": {
+      "schema": "OnlineRoom",
+      "description": "Room and state storage for active matching sessions"
+    }
+  }
+}

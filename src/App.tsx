@@ -13,6 +13,7 @@ import HistoryLog from "./components/HistoryLog";
 import PrintLayout from "./components/PrintLayout";
 import { doc, setDoc, onSnapshot, updateDoc, getDoc } from "firebase/firestore";
 import { db } from "./lib/firebase";
+import { handleFirestoreError, OperationType } from "./lib/firestore-errors";
 
 export default function App() {
   // --- WORD POOL PERSISTENCE STATE ---
@@ -155,6 +156,7 @@ export default function App() {
 
   const updateOnlineRoom = async (updates: any) => {
     if (!onlineRoomCode) return;
+    const path = `online_rooms/${onlineRoomCode}`;
     try {
       const docRef = doc(db, "online_rooms", onlineRoomCode);
       await updateDoc(docRef, {
@@ -163,6 +165,7 @@ export default function App() {
       });
     } catch (e) {
       console.error("Error updating online room in Firestore: ", e);
+      handleFirestoreError(e, OperationType.UPDATE, path);
     }
   };
 
@@ -215,6 +218,7 @@ export default function App() {
     } catch (e) {
       alert("Error al crear la sala en el servidor. Inténtalo de nuevo.");
       console.error(e);
+      handleFirestoreError(e, OperationType.CREATE, `online_rooms/${code}`);
     } finally {
       setIsLoading(false);
     }
@@ -251,6 +255,7 @@ export default function App() {
     } catch (e) {
       alert("Error al unirse a la sala. Inténtalo de nuevo.");
       console.error(e);
+      handleFirestoreError(e, OperationType.GET, `online_rooms/${code}`);
     } finally {
       setIsLoading(false);
     }
@@ -289,6 +294,7 @@ export default function App() {
       });
     } catch (e) {
       console.error(e);
+      handleFirestoreError(e, OperationType.UPDATE, `online_rooms/${onlineRoomCode}`);
     } finally {
       setIsLoading(false);
     }
@@ -329,6 +335,7 @@ export default function App() {
       });
     } catch (e) {
       console.error(e);
+      handleFirestoreError(e, OperationType.UPDATE, `online_rooms/${onlineRoomCode}`);
     } finally {
       setIsLoading(false);
     }
@@ -430,6 +437,8 @@ export default function App() {
           setGameStarted(true);
         }
       }
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, `online_rooms/${onlineRoomCode}`);
     });
 
     return () => unsubscribe();
