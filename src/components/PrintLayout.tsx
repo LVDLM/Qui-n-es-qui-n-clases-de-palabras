@@ -118,10 +118,7 @@ export default function PrintLayout({ board, onClose }: PrintLayoutProps) {
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                 {board.map((item) => (
                   <div key={item.id} className="border-2 border-dashed border-slate-400 p-4 rounded-xl flex flex-col gap-2 relative bg-white min-h-[160px]">
-                    <div className="flex justify-between items-start">
-                      <span className="font-mono text-[10px] text-slate-400 px-1 border border-slate-200 rounded">
-                        ID: {item.id}
-                      </span>
+                    <div className="flex justify-end items-start">
                       <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${getBadgesColor(item.wordClass)}`}>
                         {item.wordClass}
                       </span>
@@ -244,10 +241,7 @@ export default function PrintLayout({ board, onClose }: PrintLayoutProps) {
           <div className="print-card-grid">
             {board.map((item) => (
               <div key={item.id} className="print-card flex flex-col justify-between min-h-[180px] bg-white border border-slate-300">
-                <div className="flex justify-between items-start">
-                  <span className="font-mono text-xs font-semibold px-1 py-0.5 bg-slate-100 text-slate-700 rounded select-all">
-                    ID: {item.id}
-                  </span>
+                <div className="flex justify-end items-start">
                   <span className="text-xs font-bold uppercase tracking-wider text-slate-800">
                     {item.wordClass}
                   </span>

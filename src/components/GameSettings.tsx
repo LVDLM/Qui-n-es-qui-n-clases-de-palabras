@@ -254,7 +254,7 @@ export default function GameSettings({
                   value={p1Name}
                   onChange={(e) => {
                     const val = e.target.value;
-                    setP1Name(val || "Estudiante 1");
+                    setP1Name(val);
                     localStorage.setItem("gramatica_username", val);
                   }}
                   placeholder="Escribe tu nombre..."

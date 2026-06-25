@@ -509,6 +509,18 @@ export default function App() {
 
   // --- INIT GAME BOARD LOOP ---
   const handleStartGame = () => {
+    let finalP1Name = p1Name.trim();
+    if (!finalP1Name) {
+      if (gameMode === "single") {
+        finalP1Name = "Tú (Azul)";
+      } else if (gameMode === "multi_local") {
+        finalP1Name = "Estudiante 1 (Azul)";
+      } else {
+        finalP1Name = "Equipo A (Azul)";
+      }
+      setP1Name(finalP1Name);
+    }
+
     const targetWins = Math.ceil(seriesLength / 2);
     const isSeriesOver = p1Wins >= targetWins || p2Wins >= targetWins;
     if (isSeriesOver) {

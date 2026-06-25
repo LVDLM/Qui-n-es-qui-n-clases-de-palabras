@@ -43,7 +43,7 @@ export default function GameBoard({
   accentColor,
   gameDifficulty = "competitive"
 }: GameBoardProps) {
-  const [didacticAnalysis, setDidacticAnalysis] = useState<{ word: string; category: string; definition: string } | null>(null);
+  const [didacticAnalysis, setDidacticAnalysis] = useState<WordToken | null>(null);
   
   // Find properties for rendering badges and details
   const getCardBg = (cls: WordClass, isFlipped: boolean) => {
@@ -146,7 +146,7 @@ export default function GameBoard({
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation(); // Don't flip the card!
-                          setDidacticAnalysis({ word: item.word, category: item.wordClass, definition: item.definition });
+                          setDidacticAnalysis(item);
                         }}
                         className="h-4.5 w-4.5 rounded-full bg-slate-100 hover:bg-sky-100 text-slate-500 hover:text-sky-700 text-[10px] font-mono font-black flex items-center justify-center cursor-help transition-all shadow-2xs border border-slate-200"
                         title="Análisis Didáctico"
@@ -167,20 +167,28 @@ export default function GameBoard({
 
                   {/* Tiny properties cheat line (practice only) */}
                   {gameDifficulty === "practice" ? (
-                    <div className="border-t border-slate-100 pt-1.5 flex justify-center text-[9px] font-sans text-slate-400 italic text-center truncate uppercase px-0.5">
-                      {item.wordClass === WordClass.Sustantivo && item.attributes.noun && (
-                        <span>{item.attributes.noun.subclase} · {item.attributes.noun.genero === "invariable" ? "inv" : item.attributes.noun.genero.slice(0, 3)}</span>
-                      )}
-                      {item.wordClass === WordClass.Verbo && item.attributes.verb && (
-                        <span>{item.attributes.verb.conjugacion.split(" ")[0]} · {item.attributes.verb.tiempo.slice(0, 4)}</span>
-                      )}
-                      {item.wordClass === WordClass.Adjetivo && item.attributes.adjective && (
-                        <span>{item.attributes.adjective.tipo.slice(0, 5)} · {item.attributes.adjective.grado.slice(0, 4)}</span>
-                      )}
-                      {item.wordClass !== WordClass.Sustantivo && item.wordClass !== WordClass.Verbo && item.wordClass !== WordClass.Adjetivo && (
-                        <span>Ficha</span>
-                      )}
-                    </div>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation(); // Don't flip the card!
+                        setDidacticAnalysis(item);
+                      }}
+                      className="w-full border-t border-slate-100 pt-1.5 flex justify-center items-center gap-1 text-[9px] font-sans text-slate-500 font-semibold hover:text-sky-600 transition-all text-center uppercase px-0.5 mt-auto cursor-help"
+                      title="Haz clic para ver el análisis morfológico detallado"
+                    >
+                      <span>🔍</span>
+                      <span className="truncate max-w-[85%]">
+                        {item.wordClass === WordClass.Sustantivo && item.attributes.noun ? (
+                          `${item.attributes.noun.subclase} · ${item.attributes.noun.genero === "invariable" ? "inv" : item.attributes.noun.genero.slice(0, 3)}`
+                        ) : item.wordClass === WordClass.Verbo && item.attributes.verb ? (
+                          `${item.attributes.verb.conjugacion.split(" ")[0]} · ${item.attributes.verb.tiempo}`
+                        ) : item.wordClass === WordClass.Adjetivo && item.attributes.adjective ? (
+                          `${item.attributes.adjective.tipo.slice(0, 5)} · ${item.attributes.adjective.grado.slice(0, 4)}`
+                        ) : (
+                          `${item.wordClass}`
+                        )}
+                      </span>
+                    </button>
                   ) : (
                     <div className="h-2"></div>
                   )}
@@ -215,47 +223,138 @@ export default function GameBoard({
 
       {/* Custom Didactic Analysis Modal (Replaces iframe-blocked native alert) */}
       {didacticAnalysis && (
-        <div className="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4 backdrop-blur-xs no-print">
-          <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl p-6 flex flex-col gap-5 border border-slate-100 text-slate-900">
-            <div className="flex justify-between items-start gap-4">
+        <div className="fixed inset-0 bg-slate-900/70 z-50 flex items-center justify-center p-4 backdrop-blur-xs no-print animate-fade-in">
+          <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl p-6 md:p-8 flex flex-col gap-6 border border-slate-100 text-slate-900 max-h-[90vh] overflow-y-auto">
+            {/* Modal Header */}
+            <div className="flex justify-between items-start gap-4 border-b border-slate-100 pb-3">
               <div>
                 <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 font-mono">
-                  📖 ANÁLISIS GRAMATICAL
+                  📖 ANÁLISIS MORFOLÓGICO DETALLADO
                 </span>
-                <h3 className="text-2xl font-display font-black text-slate-900 capitalize mt-0.5">
-                  "{didacticAnalysis.word.toUpperCase()}"
+                <h3 className="text-3xl font-display font-black text-slate-950 capitalize mt-1 leading-none">
+                  "{didacticAnalysis.word}"
                 </h3>
               </div>
               <button
                 onClick={() => setDidacticAnalysis(null)}
-                className="text-slate-400 hover:text-slate-600 font-bold text-lg p-1"
+                className="text-slate-400 hover:text-slate-600 font-bold text-xl p-1.5 hover:bg-slate-50 rounded-xl transition-all cursor-pointer"
+                title="Cerrar"
               >
                 ✕
               </button>
             </div>
             
-            <div className="flex flex-col gap-4">
-              <div>
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono">Categoría de Palabra</span>
-                <div className="mt-1">
-                  <span className={`text-xs font-black uppercase tracking-widest px-3 py-1 rounded-full ${getBadgeColor(didacticAnalysis.category as WordClass)}`}>
-                    {didacticAnalysis.category}
-                  </span>
-                </div>
+            {/* Modal Body */}
+            <div className="flex flex-col gap-5">
+              {/* Word Class Category Badge */}
+              <div className="flex items-center gap-3">
+                <span className="text-xs font-semibold text-slate-500 font-mono">Clase de palabra:</span>
+                <span className={`text-xs font-black uppercase tracking-widest px-3 py-1 rounded-full border shadow-2xs ${getBadgeColor(didacticAnalysis.wordClass)}`}>
+                  {didacticAnalysis.wordClass}
+                </span>
               </div>
 
-              <div className="bg-slate-50 border border-slate-150 p-4 rounded-2xl flex flex-col gap-1.5">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono">Definición y Atributos</span>
-                <p className="text-sm text-slate-700 leading-relaxed font-medium">
+              {/* Grid of structured attributes */}
+              <div className="flex flex-col gap-2">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono">
+                  Propiedades de la Ficha
+                </span>
+                {(() => {
+                  const list: { label: string; value: string; icon: string }[] = [];
+                  const token = didacticAnalysis;
+                  
+                  if (token.wordClass === WordClass.Sustantivo && token.attributes.noun) {
+                    const n = token.attributes.noun;
+                    list.push(
+                      { label: "Subclase", value: n.subclase, icon: "🏷️" },
+                      { label: "Naturaleza", value: n.naturaleza, icon: "🌱" },
+                      { label: "Recuento", value: n.recuento, icon: "🔢" },
+                      { label: "Grupo", value: n.grupo, icon: "👥" },
+                      { label: "Género", value: n.genero, icon: "🚻" },
+                      { label: "Número", value: n.numero, icon: "📊" }
+                    );
+                  } else if (token.wordClass === WordClass.Adjetivo && token.attributes.adjective) {
+                    const a = token.attributes.adjective;
+                    list.push(
+                      { label: "Tipo", value: a.tipo, icon: "🎨" },
+                      { label: "Grado", value: a.grado, icon: "📈" },
+                      { label: "Género", value: a.genero, icon: "🚻" },
+                      { label: "Número", value: a.numero, icon: "📊" }
+                    );
+                  } else if (token.wordClass === WordClass.Verbo && token.attributes.verb) {
+                    const v = token.attributes.verb;
+                    list.push(
+                      { label: "Conjugación", value: v.conjugacion, icon: "🔄" },
+                      { label: "Persona", value: v.persona, icon: "👤" },
+                      { label: "Número", value: v.numero, icon: "📊" },
+                      { label: "Tiempo verbal", value: v.tiempo, icon: "⏳" }
+                    );
+                  } else if (token.wordClass === WordClass.Determinante && token.attributes.det) {
+                    const d = token.attributes.det;
+                    list.push(
+                      { label: "Tipo Det.", value: d.tipoDet, icon: "🔍" },
+                      { label: "Género", value: d.genero, icon: "🚻" },
+                      { label: "Número", value: d.numero, icon: "📊" }
+                    );
+                  } else if (token.wordClass === WordClass.Pronombre && token.attributes.pronoun) {
+                    const p = token.attributes.pronoun;
+                    list.push(
+                      { label: "Tipo Pron.", value: p.tipoPron, icon: "👤" },
+                      { label: "Persona", value: p.persona, icon: "🆔" },
+                      { label: "Género", value: p.genero, icon: "🚻" },
+                      { label: "Número", value: p.numero, icon: "📊" }
+                    );
+                  } else if (token.wordClass === WordClass.Adverbio && token.attributes.adverb) {
+                    list.push(
+                      { label: "Tipo Adv.", value: `de ${token.attributes.adverb.tipoAdv}`, icon: "📍" }
+                    );
+                  } else if (token.wordClass === WordClass.Preposicion && token.attributes.preposition) {
+                    list.push(
+                      { label: "Tipo Prep.", value: token.attributes.preposition.tipoPrep, icon: "🔗" }
+                    );
+                  } else if (token.wordClass === WordClass.Conjuncion && token.attributes.conjunction) {
+                    list.push(
+                      { label: "Tipo Conj.", value: token.attributes.conjunction.tipoConj, icon: "🔀" }
+                    );
+                  }
+
+                  if (list.length === 0) {
+                    return <p className="text-xs text-slate-400 italic">No hay propiedades estructuradas adicionales.</p>;
+                  }
+
+                  return (
+                    <div className="grid grid-cols-2 gap-2.5">
+                      {list.map((attr, idx) => (
+                        <div key={idx} className="bg-slate-50 border border-slate-100 p-2.5 rounded-xl flex items-center gap-2 px-3 shadow-3xs hover:bg-slate-100/50 transition-all">
+                          <span className="text-base select-none">{attr.icon}</span>
+                          <div className="flex flex-col min-w-0">
+                            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider leading-none">{attr.label}</span>
+                            <span className="text-xs font-extrabold text-slate-800 capitalize truncate mt-0.5" title={attr.value}>{attr.value}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
+              </div>
+
+              {/* Complete Didactic Description Card */}
+              <div className="bg-blue-50 border border-blue-150 p-4 rounded-2xl flex flex-col gap-1.5 shadow-3xs">
+                <span className="text-[10px] font-bold text-blue-500 uppercase tracking-wider font-mono flex items-center gap-1">
+                  <span>📝</span> Explicación Pedagógica
+                </span>
+                <p className="text-xs sm:text-sm text-blue-900 leading-relaxed font-bold font-sans">
                   {didacticAnalysis.definition}
                 </p>
               </div>
             </div>
 
-            <div className="flex justify-end mt-2">
+            {/* Modal Footer */}
+            <div className="flex justify-end border-t border-slate-100 pt-4">
               <button
+                type="button"
                 onClick={() => setDidacticAnalysis(null)}
-                className="bg-sky-600 hover:bg-sky-700 text-white font-extrabold text-sm px-6 py-2.5 rounded-xl transition-all cursor-pointer"
+                className="bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-xs py-3 px-6 rounded-xl transition-all cursor-pointer uppercase tracking-wider font-mono shadow-md active:translate-y-0.5 active:shadow-none"
               >
                 Entendido
               </button>
