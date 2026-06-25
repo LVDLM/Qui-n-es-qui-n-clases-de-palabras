@@ -654,14 +654,14 @@ export const DEFAULT_WORD_POOL: WordToken[] = [
   },
   {
     id: "pr3",
-    word: "sobre",
+    word: "durante",
     wordClass: WordClass.Preposicion,
     attributes: {
       preposition: {
         tipoPrep: "polisilábica"
       }
     },
-    definition: "Preposición simple polisilábica (indica lugar, posición superior o tema de estudio)."
+    definition: "Preposición simple polisilábica (indica tiempo o simultaneidad temporal)."
   },
   {
     id: "pr4",

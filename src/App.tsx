@@ -35,6 +35,82 @@ function cleanUndefined(obj: any): any {
   return obj;
 }
 
+function formatWordExplanation(word: string, definition: string): string {
+  let cleanDef = definition.trim();
+  if (cleanDef.endsWith(".")) {
+    cleanDef = cleanDef.slice(0, -1);
+  }
+  
+  // Replace "(indica ...)" with "que indica ..."
+  cleanDef = cleanDef.replace(/\((indica|expresa|señala|introduce|refiere|equivale)\s+([^)]+)\)/gi, (_match, verb, content) => {
+    return `que ${verb} ${content}`;
+  });
+
+  let prepended = cleanDef;
+  const lower = cleanDef.toLowerCase();
+  if (lower.startsWith("preposición")) {
+    prepended = "una " + cleanDef.slice(0, 1).toLowerCase() + cleanDef.slice(1);
+  } else if (lower.startsWith("sustantivo")) {
+    prepended = "un " + cleanDef.slice(0, 1).toLowerCase() + cleanDef.slice(1);
+  } else if (lower.startsWith("adjetivo")) {
+    prepended = "un " + cleanDef.slice(0, 1).toLowerCase() + cleanDef.slice(1);
+  } else if (lower.startsWith("verbo")) {
+    prepended = "un " + cleanDef.slice(0, 1).toLowerCase() + cleanDef.slice(1);
+  } else if (lower.startsWith("determinante")) {
+    prepended = "un " + cleanDef.slice(0, 1).toLowerCase() + cleanDef.slice(1);
+  } else if (lower.startsWith("pronombre")) {
+    prepended = "un " + cleanDef.slice(0, 1).toLowerCase() + cleanDef.slice(1);
+  } else if (lower.startsWith("adverbio")) {
+    prepended = "un " + cleanDef.slice(0, 1).toLowerCase() + cleanDef.slice(1);
+  } else if (lower.startsWith("conjunción")) {
+    prepended = "una " + cleanDef.slice(0, 1).toLowerCase() + cleanDef.slice(1);
+  } else if (lower.startsWith("artículo")) {
+    prepended = "un " + cleanDef.slice(0, 1).toLowerCase() + cleanDef.slice(1);
+  } else {
+    prepended = cleanDef.slice(0, 1).toLowerCase() + cleanDef.slice(1);
+  }
+
+  return `<strong>'${word.toUpperCase()}'</strong>: es ${prepended}.`;
+}
+
+function formatPedagogicalExplanation(word: string, definition: string): string {
+  let cleanDef = definition.trim();
+  if (cleanDef.endsWith(".")) {
+    cleanDef = cleanDef.slice(0, -1);
+  }
+  
+  // Replace "(indica ...)" with "que indica ..."
+  cleanDef = cleanDef.replace(/\((indica|expresa|señala|introduce|refiere|equivale)\s+([^)]+)\)/gi, (_match, verb, content) => {
+    return `que ${verb} ${content}`;
+  });
+
+  let prepended = cleanDef;
+  const lower = cleanDef.toLowerCase();
+  if (lower.startsWith("preposición")) {
+    prepended = "una " + cleanDef.slice(0, 1).toLowerCase() + cleanDef.slice(1);
+  } else if (lower.startsWith("sustantivo")) {
+    prepended = "un " + cleanDef.slice(0, 1).toLowerCase() + cleanDef.slice(1);
+  } else if (lower.startsWith("adjetivo")) {
+    prepended = "un " + cleanDef.slice(0, 1).toLowerCase() + cleanDef.slice(1);
+  } else if (lower.startsWith("verbo")) {
+    prepended = "un " + cleanDef.slice(0, 1).toLowerCase() + cleanDef.slice(1);
+  } else if (lower.startsWith("determinante")) {
+    prepended = "un " + cleanDef.slice(0, 1).toLowerCase() + cleanDef.slice(1);
+  } else if (lower.startsWith("pronombre")) {
+    prepended = "un " + cleanDef.slice(0, 1).toLowerCase() + cleanDef.slice(1);
+  } else if (lower.startsWith("adverbio")) {
+    prepended = "un " + cleanDef.slice(0, 1).toLowerCase() + cleanDef.slice(1);
+  } else if (lower.startsWith("conjunción")) {
+    prepended = "una " + cleanDef.slice(0, 1).toLowerCase() + cleanDef.slice(1);
+  } else if (lower.startsWith("artículo")) {
+    prepended = "un " + cleanDef.slice(0, 1).toLowerCase() + cleanDef.slice(1);
+  } else {
+    prepended = cleanDef.slice(0, 1).toLowerCase() + cleanDef.slice(1);
+  }
+
+  return `correcta <strong>'${word.toUpperCase()}'</strong>. Es ${prepended}.`;
+}
+
 export default function App() {
   // --- WORD POOL PERSISTENCE STATE ---
   const [wordPool, setWordPool] = useState<WordToken[]>(() => {
@@ -1092,7 +1168,7 @@ export default function App() {
         "🏳️ ¿Rendirse de la partida?",
         "¿Estás seguro de que deseas rendirte? Se revelará tu término secreto y el oponente ganará la ronda de inmediato.",
         "Sí, Rendirme",
-        "No, Seguir jugando",
+        "No, seguir jugando",
         () => {
           const winnerRole = onlineRole === "host" ? "guest" : "host";
           const nextHostWins = winnerRole === "host" ? (onlineRoom.hostWins || 0) + 1 : (onlineRoom.hostWins || 0);
@@ -1113,7 +1189,7 @@ export default function App() {
       "🏳️ ¿Rendirse de la partida?",
       "¿Estás seguro de que deseas rendirte? Se revelará el término secreto de tu rival y finalizará la partida de inmediato.",
       "Sí, Rendirme",
-      "No, Seguir jugando",
+      "No, seguir jugando",
       () => {
         // Set the opponent as the winner
         setWinner(currentTurn === "p1" ? "p2" : "p1");
@@ -1147,7 +1223,7 @@ export default function App() {
                   "⚙️ Volver a Ajustes",
                   "¿Seguro que deseas abandonar la partida actual para configurar una nueva?",
                   "Sí, Volver",
-                  "No, Seguir jugando",
+                  "No, seguir jugando",
                   () => {
                     setGameStarted(false);
                   }
@@ -1530,7 +1606,7 @@ export default function App() {
                   <div>
                     {p1Mistakes.length > 0 && player1Secret ? (
                       <p className="text-xs text-rose-700 leading-relaxed mt-1">
-                        ⚠️ <strong>Atención pedagógica:</strong> Durante la partida, descartaste de forma errónea la palabra correcta <strong>'{player1Secret.word.toUpperCase()}'</strong> ({player1Secret.definition}). Recuerda repasar las pistas con más atención.
+                        ⚠️ <strong>Atención pedagógica:</strong> Durante la partida, descartaste de forma errónea la palabra <span dangerouslySetInnerHTML={{ __html: formatPedagogicalExplanation(player1Secret.word, player1Secret.definition) }} /> Recuerda repasar las pistas con más atención.
                       </p>
                     ) : winner === "p1" ? (
                       <p className="text-xs text-emerald-700 mt-1 leading-relaxed">
@@ -1549,7 +1625,7 @@ export default function App() {
                       <h4 className="text-xs font-bold text-slate-950">{p2Name}:</h4>
                       {p2Mistakes.length > 0 && player2Secret ? (
                         <p className="text-xs text-rose-700 leading-relaxed mt-1">
-                          ⚠️ <strong>Atención pedagógica:</strong> Durante la partida, descartaste de forma errónea la palabra correcta <strong>'{player2Secret.word.toUpperCase()}'</strong> ({player2Secret.definition}).
+                          ⚠️ <strong>Atención pedagógica:</strong> Durante la partida, descartaste de forma errónea la palabra <span dangerouslySetInnerHTML={{ __html: formatPedagogicalExplanation(player2Secret.word, player2Secret.definition) }} />
                         </p>
                       ) : (
                         <p className="text-xs text-emerald-700 mt-1 leading-relaxed">
@@ -1561,8 +1637,22 @@ export default function App() {
 
                   {/* Words Solutions details */}
                   <div className="border-t border-slate-100 pt-3 mt-1 text-slate-600 text-xs flex flex-col gap-1.5">
-                    <p>🗝️ <strong>Solución Secreta del Equipo A:</strong> '{player2Secret?.word.toUpperCase()}' ({player2Secret?.definition})</p>
-                    <p>🗝️ <strong>Solución Secreta del Equipo B:</strong> '{player1Secret?.word.toUpperCase()}' ({player1Secret?.definition})</p>
+                    <p>
+                      🗝️ <strong>Solución Secreta del Equipo A:</strong>{" "}
+                      {player2Secret ? (
+                        <span dangerouslySetInnerHTML={{ __html: formatWordExplanation(player2Secret.word, player2Secret.definition) }} />
+                      ) : (
+                        "Ninguna"
+                      )}
+                    </p>
+                    <p>
+                      🗝️ <strong>Solución Secreta del Equipo B:</strong>{" "}
+                      {player1Secret ? (
+                        <span dangerouslySetInnerHTML={{ __html: formatWordExplanation(player1Secret.word, player1Secret.definition) }} />
+                      ) : (
+                        "Ninguna"
+                      )}
+                    </p>
                   </div>
                 </div>
 
