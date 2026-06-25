@@ -8,8 +8,8 @@ service cloud.firestore {
 
     // Rules for game rooms
     match /online_rooms/{roomId} {
-      // Allow read/write for any room with a 4-character ID code
-      allow read, write: if roomId.size() == 4;
+      // Allow read/write for any room
+      allow read, write: if true;
     }
   }
 }
